@@ -1,0 +1,10 @@
+{
+  "route_arrow_borbalo": {
+    "x": 0,
+    "y": 0,
+    "width": 64,
+    "height": 20,
+    "pixelRatio": 1,
+    "sdf": false
+  }
+}

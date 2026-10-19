@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Borbalo Traffic Add-On Layer (v2.1) — Solid Colours · Z-Levels · Corridor Merging · Prod Tiles</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f141c;
+      --panel: rgba(16, 22, 31, 0.96);
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #eef3f8;
+      --muted: #98a6b8;
+      --accent: #42cf87;
+      --accent-dim: rgba(66, 207, 135, 0.16);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+    #map {
+      position: absolute;
+      inset: 0;
+    }
+    .hud {
+      position: absolute;
+      top: 52px;
+      left: 14px;
+      width: 390px;
+      max-height: calc(100vh - 66px);
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.52);
+      z-index: 10;
+    }
+    .quick-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 52px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .quick-bar::-webkit-scrollbar { display: none; }
+    .quick-chip {
+      pointer-events: auto;
+      background: rgba(16, 22, 31, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .quick-chip.primary {
+      background: var(--accent);
+      color: #0b2217;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    .hud-close-btn {
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    @media (max-width: 768px) {
+      .hud {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 56vh;
+        border-radius: 16px 16px 0 0;
+        padding: 12px 14px 20px;
+      }
+    }
+    .hud h1 {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(66, 207, 135, 0.4);
+    }
+    .sub {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin: 0 0 8px 0;
+      line-height: 1.4;
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #cfe0f5;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .section {
+      margin-bottom: 10px;
+      padding-top: 9px;
+      border-top: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .auth-box {
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      margin-bottom: 10px;
+    }
+    .auth-msg {
+      font-size: 11.5px;
+      color: var(--text);
+      margin: 0 0 6px 0;
+    }
+    .auth-msg.error {
+      color: #ff7b7b;
+    }
+    .auth-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .auth-box input {
+      flex: 1;
+      min-width: 0;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 9px;
+      color: var(--text);
+      font-size: 12.5px;
+    }
+    .auth-box button.primary-btn {
+      background: var(--accent);
+      color: #0b2217;
+      font-weight: 700;
+      border-color: var(--accent);
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .btn-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    button {
+      appearance: none;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.12s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    button:hover {
+      background: rgba(255, 255, 255, 0.09);
+    }
+    button.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+    }
+    button small {
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 400;
+    }
+    button.active small {
+      color: var(--accent);
+    }
+    .swatches {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 0, 0, 0.45);
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.32);
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .metric-val {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="quick-bar" id="quick-bar">
+    <button type="button" class="quick-chip primary" id="btn-toggle-hud">☰ Controls</button>
+    <span class="quick-chip" id="quick-zoom">z17.2</span>
+    <button type="button" class="quick-chip" data-qcam="regional">z8.2 Regional</button>
+    <button type="button" class="quick-chip" data-qcam="city">z10.9 City</button>
+    <button type="button" class="quick-chip" data-qcam="cutoff">z14.6 Street</button>
+    <button type="button" class="quick-chip" data-qcam="heroes">z17.2 3D</button>
+    <button type="button" class="quick-chip" id="btn-quick-theme">🌙 Night</button>
+  </div>
+  <div class="hud" id="hud-panel">
+    <h1>
+      <span>Borbalo Traffic v2.1</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span class="badge" id="source-badge">Solid + Z-Decks</span>
+        <button type="button" class="hud-close-btn" id="btn-close-hud">Hide ✕</button>
+      </span>
+    </h1>
+    <p class="sub">
+      Production <code>georgia.pmtiles</code> + <code>Final-Map-Style</code> with 100% solid colours (<code>line-opacity: 1</code>), direct <code>step(zoom)</code> street cutoffs, low-zoom corridor merging, and 7-deck Z-level interleaving.
+    </p>
+    <div class="pills">
+      <span class="pill">line-opacity: 1.0 (Solid Hex)</span>
+      <span class="pill">7 Z-Decks (z = -1..5)</span>
+      <span class="pill">Hard step(zoom) Cutoffs</span>
+      <span class="pill">Exact z14 Road Match</span>
+    </div>
+
+    <!-- Production Sign-In Section -->
+    <div class="auth-box" id="auth-box">
+      <div class="section-title" style="margin-bottom:4px;">
+        <span>Production Live Traffic Sign-In (api.borbalo.ge)</span>
+        <span id="auth-status-tag" style="color:var(--accent);">Snapshot Active</span>
+      </div>
+      <p class="auth-msg" id="auth-msg">Enter your phone number (e.g. <code>599XXXXXX</code> or <code>995599XXXXXX</code>) or use Instant Dev Login to stream live production tiles.</p>
+      <form id="auth-phone-form" class="auth-row">
+        <input id="auth-phone" type="tel" inputmode="tel" placeholder="599XXXXXX or 995XXXXXXXXX" maxlength="24" required />
+        <button type="submit" class="primary-btn">Send SMS</button>
+        <button type="button" id="btn-test-login" title="Sign in immediately using Borbalo dev account (995111111712)">Instant Login</button>
+      </form>
+      <form id="auth-code-form" class="auth-row" hidden>
+        <input id="auth-code" type="text" inputmode="numeric" placeholder="6-digit SMS code" maxlength="16" required />
+        <button type="submit" class="primary-btn">Sign In</button>
+        <button type="button" id="auth-back">Back</button>
+      </form>
+      <div id="auth-signed-in" class="auth-row" hidden>
+        <button type="button" id="btn-live-refresh" class="active" style="flex:1;"><span>Refresh Live Tiles</span><small id="live-time">Live</small></button>
+        <button type="button" id="btn-logout">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div>
+        <div class="metric-label">Zoom / Active Band</div>
+        <div class="metric-val" id="m-zoom">z17.2 · Band 14</div>
+      </div>
+      <div>
+        <div class="metric-label">Tier-2 Width / Offset</div>
+        <div class="metric-val" id="m-geom">4.2px / 3.3px</div>
+      </div>
+      <div>
+        <div class="metric-label">Regime / Z-Decks</div>
+        <div class="metric-val" id="m-margin">Exact z14 · 7 Decks</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>1. Navigation Mode (100% Solid Hex Hierarchy)</span>
+      </div>
+      <div class="btn-stack" id="mode-buttons">
+        <button data-mode="browse" data-nav="free" class="active">
+          <span>Browse Mode</span>
+          <small>Primary Solid Network (1.0 α)</small>
+        </button>
+        <button data-mode="drive" data-nav="preview">
+          <span>Drive / Route Preview</span>
+          <small>Solid Muted Context + Route</small>
+        </button>
+        <button data-mode="drive" data-nav="guidance">
+          <span>Active Turn-by-Turn Guidance</span>
+          <small>Solid Subdued Context + Route</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>2. Solid Reference Palette (Zero Transparency)</span>
+      </div>
+      <div class="btn-stack" id="palette-buttons">
+        <button data-palette="google" class="active">
+          <span>Google Maps Reference (Solid)</span>
+          <span class="swatches">
+            <span class="swatch" style="background:#42CF87"></span>
+            <span class="swatch" style="background:#FBC532"></span>
+            <span class="swatch" style="background:#E65C50"></span>
+            <span class="swatch" style="background:#C93438"></span>
+            <span class="swatch" style="background:#B82D43"></span>
+          </span>
+        </button>
+        <button data-palette="borbalo">
+          <span>Borbalo Native (Solid 5-Tier)</span>
+          <span class="swatches">
+            <span class="swatch" style="background:#00C6BE"></span>
+            <span class="swatch" style="background:#FFBA00"></span>
+            <span class="swatch" style="background:#FF7B18"></span>
+            <span class="swatch" style="background:#E52520"></span>
+            <span class="swatch" style="background:#B81D24"></span>
+          </span>
+        </button>
+        <button data-palette="yandex">
+          <span>Yandex Navigator Reference (Solid)</span>
+          <span class="swatches">
+            <span class="swatch" style="background:#66C32E"></span>
+            <span class="swatch" style="background:#F5B800"></span>
+            <span class="swatch" style="background:#EE4B2B"></span>
+            <span class="swatch" style="background:#C92A2A"></span>
+            <span class="swatch" style="background:#8E1B1B"></span>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>3. Theme &amp; Z-Level / Legacy Inspector</span>
+      </div>
+      <div class="btn-grid">
+        <button id="theme-day" class="active"><span>Day Theme</span><small>Prod Day</small></button>
+        <button id="theme-night"><span>Night Theme</span><small>Prod Night</small></button>
+      </div>
+      <div class="btn-grid" style="margin-top:6px;">
+        <button id="ab-calibrated" class="active"><span>v2.1 Add-On (7 Z-Decks)</span><small>Fixed</small></button>
+        <button id="ab-legacy"><span>Legacy Server</span><small>Flat / Broken</small></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>4. Camera Bookmarks (Z-Levels, Street Match &amp; Overview)</span>
+      </div>
+      <div class="btn-stack" id="camera-buttons">
+        <button data-cam="heroes" class="active">
+          <span>Z-Level Interchange: Heroes Square</span>
+          <small>z17.2 · Tunnel (z=-1) + Ground + Bridges (z=1,2)</small>
+        </button>
+        <button data-cam="rustaveli">
+          <span>Street Geometry Match: Rustaveli &amp; Freedom Sq</span>
+          <small>z16.8 · Exact georgia.pmtiles Curves</small>
+        </button>
+        <button data-cam="cutoff">
+          <span>Direct Street Cutoff Threshold</span>
+          <small>z14.6 · Zoom Out to 14.3 -> Instant Cutoff</small>
+        </button>
+        <button data-cam="city">
+          <span>Google-Style City Overview: Tbilisi</span>
+          <small>z11.5 · Band 10 Merged Corridors</small>
+        </button>
+        <button data-cam="regional">
+          <span>Google-Style Regional Overview: Georgia</span>
+          <small>z8.6 · Band 8 Merged Highway Corridors</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      BORBALO_PAVEMENT_WIDTH_STOPS,
+      TRAFFIC_CORE_WIDTH_STOPS,
+      TRAFFIC_OFFSET_STOPS,
+      injectTrafficAddonIntoStyle,
+    } from './traffic-addon.js?v=corridors-11';
+
+    const CAMERAS = {
+      heroes: { center: [44.7826, 41.7131], zoom: 17.2, pitch: 28, bearing: -20 },
+      rustaveli: { center: [44.7972, 41.6968], zoom: 16.8, pitch: 0, bearing: -25 },
+      cutoff: { center: [44.7650, 41.7115], zoom: 14.6, pitch: 0, bearing: 0 },
+      city: { center: [44.7550, 41.7080], zoom: 10.9, pitch: 0, bearing: 0 },
+      regional: { center: [44.4800, 41.8400], zoom: 8.2, pitch: 0, bearing: 0 },
+    };
+
+    const isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const appRoot = new URL('../', window.location.href).href;
+
+    const state = {
+      mode: 'browse',
+      navigationState: 'free',
+      theme: 'day',
+      palette: 'google',
+      legacyMode: false,
+      authenticated: false,
+      liveDisplayData: null,
+    };
+
+    const [snapshotGeoJson, routeBundle] = await Promise.all([
+      fetch('./borbalo-traffic-snapshot.geojson?v=corridors-11').then(r => r.json()),
+      fetch('./borbalo-route-snapshot.json?v=corridors-11').then(r => r.json()),
+    ]);
+
+    function currentTrafficData() {
+      return (state.authenticated && state.liveDisplayData && state.liveDisplayData.features?.length)
+        ? state.liveDisplayData
+        : snapshotGeoJson;
+    }
+
+    const styleCache = new Map();
+    async function fetchProdStyle(mode, theme) {
+      const file = `prod-${mode === 'drive' ? 'drive' : 'browse'}-${theme === 'night' ? 'night' : 'day'}-en.json`;
+      if (!styleCache.has(file)) {
+        const res = await fetch(`./styles/${file}?v=corridors-11`);
+        styleCache.set(file, await res.json());
+      }
+      const style = structuredClone(styleCache.get(file));
+      const origin = window.location.origin;
+      if (isLocalDev) {
+        if (style.sources?.openmaptiles?.url?.startsWith('/')) {
+          style.sources.openmaptiles.url = origin + style.sources.openmaptiles.url;
+        }
+      } else {
+        style.sources.openmaptiles = {
+          type: 'vector',
+          tiles: [`${appRoot}basemap/tiles/{z}/{x}/{y}.pbf`],
+          minzoom: 6,
+          maxzoom: 14,
+          bounds: [39.9, 41.0, 46.8, 43.6],
+        };
+      }
+      if (typeof style.glyphs === 'string' && style.glyphs.startsWith('/')) {
+        style.glyphs = `${appRoot}${style.glyphs.slice(1)}`;
+      }
+      if (typeof style.sprite === 'string' && style.sprite.startsWith('/')) {
+        style.sprite = `${appRoot}${style.sprite.slice(1)}`;
+      } else if (Array.isArray(style.sprite)) {
+        style.sprite = style.sprite.map(s => ({
+          ...s,
+          url: s.url.startsWith('/') ? `${appRoot}${s.url.slice(1)}` : s.url,
+        }));
+      }
+      return style;
+    }
+
+    function buildLegacyServerStyle(baseStyle, theme) {
+      const style = structuredClone(baseStyle);
+      style.sources.traffic = { type: 'geojson', data: currentTrafficData(), tolerance: 0 };
+      style.layers = style.layers.filter(l => !l.id.startsWith('traffic-flow'));
+      const isNight = theme === 'night';
+      const legacyCasing = {
+        id: 'traffic-flow-casing',
+        type: 'line',
+        source: 'traffic',
+        minzoom: 5,
+        filter: ['all', ['!=', ['get', 'closed'], 1], ['has', 'cong'], ['any', ['==', ['get', 'zoom_band'], 14], ['!', ['has', 'zoom_band']]]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round', visibility: 'visible' },
+        paint: {
+          'line-color': ['match', ['get', 'cong'], 3, isNight ? '#2A6667' : '#006D69', 2, isNight ? '#867404' : '#8C6600', 1, '#8C440D', 0, isNight ? '#771E1E' : '#8C201A', '#006D69'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.8, 12, 4.4, 15, 6.2, 17, 8.6, 20, 12.6],
+          'line-offset': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 12, 2.0, 15, 4.5, 17, 7.4, 20, 13.17],
+          'line-opacity': isNight ? 0.88 : 0.92,
+        },
+      };
+      const legacyFlow = {
+        id: 'traffic-flow',
+        type: 'line',
+        source: 'traffic',
+        minzoom: 5,
+        filter: ['all', ['!=', ['get', 'closed'], 1], ['has', 'cong'], ['any', ['==', ['get', 'zoom_band'], 14], ['!', ['has', 'zoom_band']]]],
+        layout: { 'line-cap': 'butt', 'line-join': 'round', visibility: 'visible' },
+        paint: {
+          'line-color': ['match', ['get', 'cong'], 3, isNight ? '#4BB1B2' : '#00C6BE', 2, isNight ? '#F4D208' : '#FFBA00', 1, '#FF7B18', 0, isNight ? '#D93636' : '#FF3B30', '#00C6BE'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.0, 12, 3.0, 15, 4.4, 17, 6.4, 20, 10.2],
+          'line-offset': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 12, 2.0, 15, 4.5, 17, 7.4, 20, 13.17],
+          'line-opacity': isNight ? 0.88 : 0.92,
+        },
+      };
+      const ferryIdx = style.layers.findIndex(l => l.id === 'ferry_route');
+      style.layers.splice(ferryIdx >= 0 ? ferryIdx + 1 : style.layers.length, 0, legacyCasing, legacyFlow);
+      return style;
+    }
+
+    async function composeCurrentStyle() {
+      const raw = await fetchProdStyle(state.mode, state.theme);
+      let composed;
+      if (state.legacyMode) {
+        composed = buildLegacyServerStyle(raw, state.theme);
+      } else {
+        composed = injectTrafficAddonIntoStyle(raw, {
+          mode: state.mode,
+          navigationState: state.navigationState,
+          theme: state.theme,
+          palette: state.palette,
+          visibility: 'visible',
+          gradeSeparated: true,
+        });
+        composed.sources.traffic = {
+          type: 'geojson',
+          data: currentTrafficData(),
+          tolerance: 0,
+          maxzoom: 18,
+        };
+        for (const layer of composed.layers) {
+          if (layer.source === 'traffic') {
+            delete layer['source-layer'];
+          }
+        }
+      }
+
+      const emptyFc = { type: 'FeatureCollection', features: [] };
+      const showRoutes = state.mode === 'drive';
+      const showAltRoute = state.mode === 'drive' && state.navigationState === 'preview';
+
+      if (composed.sources.active_route) {
+        composed.sources.active_route.data = showRoutes ? routeBundle.active_route : emptyFc;
+      }
+      if (composed.sources.upcoming_route) {
+        composed.sources.upcoming_route.data = showRoutes ? routeBundle.upcoming_route : emptyFc;
+      }
+      if (composed.sources.upcoming_traffic) {
+        composed.sources.upcoming_traffic.data = showRoutes ? routeBundle.upcoming_traffic : emptyFc;
+      }
+      if (composed.sources.alternative_route) {
+        composed.sources.alternative_route.data = showAltRoute ? routeBundle.alternative_route : emptyFc;
+      }
+
+      return composed;
+    }
+
+    const initialStyle = await composeCurrentStyle();
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: initialStyle,
+      ...CAMERAS.heroes,
+      maxPitch: 65,
+      hash: false,
+    });
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    window.__trafficMap = map;
+
+    // Live Production Worker & Auth Integration (`api.borbalo.ge/nav/traffic/tiles`)
+    const worker = new Worker(new URL('./runtime/traffic-display-worker.js?v=corridors-11', import.meta.url), { type: 'module' });
+    let workerSerial = 0;
+    let latestWorkerSerial = 0;
+    let workerBusy = false;
+    let pendingWorkerJob = null;
+    let roadEpoch = 0;
+    let liveTrafficMeta = null;
+
+    const plainFeatures = feats => feats.map(f => ({
+      type: 'Feature',
+      id: f.id,
+      geometry: f.geometry,
+      properties: f.properties,
+    }));
+
+    function scheduleLiveWorkerUpdate() {
+      if (!state.authenticated || !map.getSource('actual-traffic-tiles')) return;
+      const rawFeats = map.querySourceFeatures('actual-traffic-tiles', { sourceLayer: 'traffic' })
+        .filter(f => f.properties.closed !== 1 && [0, 1, 2, 3].includes(f.properties.cong));
+      if (!rawFeats.length) return;
+      const z = map.getZoom();
+      const b = map.getBounds();
+      const roads = map.querySourceFeatures('openmaptiles', { sourceLayer: 'transportation' });
+      const names = map.querySourceFeatures('openmaptiles', { sourceLayer: 'transportation_name' });
+      const job = {
+        id: ++workerSerial,
+        zoom: z,
+        baseZoom: Math.min(Math.floor(z), 14),
+        roadEpoch,
+        bounds: [b.getWest() - 0.001, b.getSouth() - 0.001, b.getEast() + 0.001, b.getNorth() + 0.001],
+        features: plainFeatures(rawFeats),
+        roads: plainFeatures(roads),
+        roadNames: plainFeatures(names),
+      };
+      latestWorkerSerial = job.id;
+      if (workerBusy) {
+        pendingWorkerJob = job;
+      } else {
+        workerBusy = true;
+        worker.postMessage(job);
+      }
+    }
+
+    worker.onmessage = ({ data: result }) => {
+      workerBusy = false;
+      if (result.id === latestWorkerSerial && state.authenticated && !result.error && result.data?.features?.length) {
+        state.liveDisplayData = result.data;
+        map.getSource('traffic')?.setData(result.data);
+        document.getElementById('auth-status-tag').textContent = `Live (${result.data.features.length} segs)`;
+      }
+      if (pendingWorkerJob) {
+        const next = pendingWorkerJob;
+        pendingWorkerJob = null;
+        workerBusy = true;
+        worker.postMessage(next);
+      }
+    };
+
+    async function mountLiveTrafficTileSource() {
+      if (!state.authenticated) return;
+      try {
+        const res = await fetch('/production/nav/traffic/tiles/traffic.json', { cache: 'no-store' });
+        if (res.status === 401) {
+          setAuthenticatedState(false, 'Session expired. Sign in again.');
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const meta = await res.json();
+        const origin = window.location.origin;
+        const tiles = (meta.tiles || []).map(t => {
+          const u = new URL(t, 'https://api.borbalo.ge');
+          return `${origin}/production${u.pathname}${u.search}`.replace(/%7B(z|x|y)%7D/gi, '{$1}');
+        });
+        liveTrafficMeta = {
+          type: 'vector',
+          tiles,
+          minzoom: meta.minzoom ?? 5,
+          maxzoom: meta.maxzoom ?? 15,
+        };
+        if (map.getLayer('actual-traffic-tile-loader')) map.removeLayer('actual-traffic-tile-loader');
+        if (map.getSource('actual-traffic-tiles')) map.removeSource('actual-traffic-tiles');
+        map.addSource('actual-traffic-tiles', liveTrafficMeta);
+        map.addLayer({
+          id: 'actual-traffic-tile-loader',
+          type: 'line',
+          source: 'actual-traffic-tiles',
+          'source-layer': 'traffic',
+          layout: { visibility: 'visible' },
+          paint: { 'line-opacity': 0 },
+        });
+        document.getElementById('live-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setTimeout(scheduleLiveWorkerUpdate, 450);
+      } catch (err) {
+        setAuthMessage(`Live tile error: ${err.message}`, true);
+      }
+    }
+
+    map.on('sourcedata', e => {
+      if (e.sourceId === 'actual-traffic-tiles' && e.isSourceLoaded) {
+        scheduleLiveWorkerUpdate();
+      } else if (e.sourceId === 'openmaptiles') {
+        roadEpoch++;
+      }
+    });
+    map.on('moveend', () => {
+      if (state.authenticated) scheduleLiveWorkerUpdate();
+    });
+
+    // Auth UI wiring
+    let pendingPhoneLogin = '';
+    const authMsgEl = document.getElementById('auth-msg');
+    const phoneForm = document.getElementById('auth-phone-form');
+    const codeForm = document.getElementById('auth-code-form');
+    const signedInBar = document.getElementById('auth-signed-in');
+
+    function normalizePhoneLogin(raw) {
+      let digits = String(raw || '').replace(/\D+/g, '');
+      if (digits.startsWith('00995')) digits = digits.slice(2);
+      if (digits.length === 9 && digits.startsWith('5')) {
+        digits = `995${digits}`;
+      } else if (digits.length === 10 && digits.startsWith('05')) {
+        digits = `995${digits.slice(1)}`;
+      }
+      return digits;
+    }
+
+    function setAuthMessage(text, isError = false) {
+      authMsgEl.textContent = text;
+      authMsgEl.classList.toggle('error', isError);
+    }
+
+    function setAuthenticatedState(isAuthed, msg = '') {
+      state.authenticated = isAuthed;
+      phoneForm.hidden = isAuthed;
+      codeForm.hidden = true;
+      signedInBar.hidden = !isAuthed;
+      document.getElementById('auth-status-tag').textContent = isAuthed ? 'Live Production' : 'Snapshot Active';
+      setAuthMessage(
+        msg || (isAuthed
+          ? 'Connected to live api.borbalo.ge production traffic tiles.'
+          : 'Enter your phone number (e.g. 599XXXXXX or 995599XXXXXX) or click Instant Login to stream live production tiles.'),
+        false,
+      );
+      if (isAuthed) {
+        mountLiveTrafficTileSource();
+      } else {
+        state.liveDisplayData = null;
+        map.getSource('traffic')?.setData(snapshotGeoJson);
+      }
+    }
+
+    phoneForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const login = normalizePhoneLogin(document.getElementById('auth-phone').value);
+      if (!/^\d{9,15}$/.test(login)) {
+        setAuthMessage('Enter a valid phone number (e.g. 599XXXXXX or 995599XXXXXX).', true);
+        return;
+      }
+      document.getElementById('auth-phone').value = login;
+      pendingPhoneLogin = login;
+      setAuthMessage(`Sending SMS code to +${login} via api.borbalo.ge…`);
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status !== 204 && !res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        if (data.login) pendingPhoneLogin = data.login;
+        phoneForm.hidden = true;
+        codeForm.hidden = false;
+        setAuthMessage(data.message || `Enter the 6-digit SMS code sent to +${pendingPhoneLogin}.`);
+        document.getElementById('auth-code').focus();
+      } catch (err) {
+        setAuthMessage(err.message || 'Could not send SMS.', true);
+      }
+    });
+
+    codeForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const code = document.getElementById('auth-code').value.replace(/\D+/g, '');
+      if (!code) {
+        setAuthMessage('Enter the 6-digit numeric SMS code.', true);
+        return;
+      }
+      setAuthMessage(`Signing in (+${pendingPhoneLogin}) to api.borbalo.ge…`);
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login: pendingPhoneLogin, code }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        document.getElementById('auth-code').value = '';
+        setAuthenticatedState(true, `Signed in to production (+${data.login || pendingPhoneLogin}).`);
+      } catch (err) {
+        setAuthMessage(err.message || 'Sign-in failed.', true);
+      }
+    });
+
+    document.getElementById('btn-test-login').addEventListener('click', async () => {
+      if (!isLocalDev) {
+        document.getElementById('auth-status-tag').textContent = `Pre-Matched (${snapshotGeoJson.features.length} segs)`;
+        setAuthMessage('GitHub Pages static host active: rendering pre-matched api.borbalo.ge production snapshot (z8..z14).', false);
+        return;
+      }
+      setAuthMessage('Signing in to api.borbalo.ge with Borbalo dev credentials…');
+      try {
+        const res = await fetch('/api/auth/test-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        setAuthenticatedState(true, `Signed in to production (+${data.login || '995111111712'}).`);
+      } catch (err) {
+        setAuthMessage(err.message || 'Instant dev login failed.', true);
+      }
+    });
+
+    document.getElementById('auth-back').addEventListener('click', () => {
+      codeForm.hidden = true;
+      phoneForm.hidden = false;
+      setAuthMessage('Enter your phone number to receive an SMS code.');
+    });
+
+    document.getElementById('btn-live-refresh').addEventListener('click', () => {
+      mountLiveTrafficTileSource();
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+      setAuthenticatedState(false, 'Signed out. Using local georgia.pmtiles snapshot.');
+    });
+
+    // Check existing session on startup
+    if (isLocalDev) {
+      fetch('/api/session', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.authenticated) setAuthenticatedState(true, `Signed in to production (+${d.login || 'live'}).`);
+        })
+        .catch(() => {});
+    } else {
+      document.getElementById('auth-status-tag').textContent = `Snapshot (${snapshotGeoJson.features.length} segs)`;
+      setAuthMessage('Hosted on GitHub Pages with pre-matched api.borbalo.ge production traffic across z8..z14.', false);
+    }
+
+    function interpStops(stops, z, idx) {
+      if (z <= stops[0][0]) return stops[0][1][idx];
+      for (let i = 1; i < stops.length; i++) {
+        const [z0, v0] = stops[i - 1];
+        const [z1, v1] = stops[i];
+        if (z <= z1) {
+          const t = (z - z0) / (z1 - z0);
+          return v0[idx] + t * (v1[idx] - v0[idx]);
+        }
+      }
+      return stops.at(-1)[1][idx];
+    }
+
+    function interpObjStops(obj, z) {
+      const keys = Object.keys(obj).map(Number).sort((a, b) => a - b);
+      if (z <= keys[0]) return obj[keys[0]];
+      for (let i = 1; i < keys.length; i++) {
+        const z0 = keys[i - 1], z1 = keys[i];
+        if (z <= z1) {
+          const t = (z - z0) / (z1 - z0);
+          return obj[z0] + t * (obj[z1] - obj[z0]);
+        }
+      }
+      return obj[keys.at(-1)];
+    }
+
+    function activeBandLabel(z) {
+      if (z < 8) return 'Band 6 Merged';
+      if (z < 9.5) return 'Band 8 Merged';
+      if (z < 11.5) return 'Band 10 Merged';
+      if (z < 14) return 'Band 12 Merged';
+      return 'Band 14 Exact';
+    }
+
+    function updateMetrics() {
+      const z = map.getZoom();
+      document.getElementById('m-zoom').textContent = `z${z.toFixed(1)} · ${activeBandLabel(z)}`;
+      document.getElementById('quick-zoom').textContent = `z${z.toFixed(1)} · ${activeBandLabel(z).replace(' Merged', '')}`;
+      const w = interpStops(TRAFFIC_CORE_WIDTH_STOPS, z, 1);
+      const d = interpStops(TRAFFIC_OFFSET_STOPS, z, 1);
+      const pav = interpObjStops(BORBALO_PAVEMENT_WIDTH_STOPS[2], z);
+      const margin = (pav / 2) - (d + w / 2);
+      document.getElementById('m-geom').textContent = `${w.toFixed(1)}px / ${d.toFixed(1)}px`;
+      document.getElementById('m-margin').textContent = z >= 14
+        ? `+${margin.toFixed(1)}px · 7 Z-Decks`
+        : `Corridor Merged`;
+    }
+
+    const hudPanel = document.getElementById('hud-panel');
+    const toggleHudBtn = document.getElementById('btn-toggle-hud');
+    function setHudVisible(vis) {
+      hudPanel.hidden = !vis;
+      toggleHudBtn.textContent = vis ? '✕ Hide UI' : '☰ Controls';
+    }
+    if (window.innerWidth <= 768) {
+      setHudVisible(false);
+    } else {
+      setHudVisible(true);
+    }
+    toggleHudBtn.addEventListener('click', () => setHudVisible(hudPanel.hidden));
+    document.getElementById('btn-close-hud').addEventListener('click', () => setHudVisible(false));
+
+    document.querySelectorAll('[data-qcam]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cam = CAMERAS[btn.dataset.qcam];
+        if (cam) map.flyTo({ ...cam, duration: 900 });
+        if (window.innerWidth <= 768) setHudVisible(false);
+      });
+    });
+
+    const quickThemeBtn = document.getElementById('btn-quick-theme');
+    quickThemeBtn.addEventListener('click', () => {
+      state.theme = state.theme === 'day' ? 'night' : 'day';
+      document.getElementById('theme-day').classList.toggle('active', state.theme === 'day');
+      document.getElementById('theme-night').classList.toggle('active', state.theme === 'night');
+      quickThemeBtn.textContent = state.theme === 'day' ? '🌙 Night' : '☀️ Day';
+      refreshStyle();
+    });
+
+    map.on('move', updateMetrics);
+    map.on('load', updateMetrics);
+
+    async function refreshStyle() {
+      const nextStyle = await composeCurrentStyle();
+      map.setStyle(nextStyle, { diff: false });
+      map.once('styledata', () => {
+        if (state.authenticated) mountLiveTrafficTileSource();
+      });
+      updateMetrics();
+    }
+
+    document.querySelectorAll('#mode-buttons button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#mode-buttons button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.mode = btn.dataset.mode;
+        state.navigationState = btn.dataset.nav;
+        refreshStyle();
+      });
+    });
+
+    document.querySelectorAll('#palette-buttons button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#palette-buttons button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.palette = btn.dataset.palette;
+        refreshStyle();
+      });
+    });
+
+    document.getElementById('theme-day').addEventListener('click', () => {
+      document.getElementById('theme-day').classList.add('active');
+      document.getElementById('theme-night').classList.remove('active');
+      state.theme = 'day';
+      quickThemeBtn.textContent = '🌙 Night';
+      refreshStyle();
+    });
+    document.getElementById('theme-night').addEventListener('click', () => {
+      document.getElementById('theme-night').classList.add('active');
+      document.getElementById('theme-day').classList.remove('active');
+      state.theme = 'night';
+      quickThemeBtn.textContent = '☀️ Day';
+      refreshStyle();
+    });
+
+    document.getElementById('ab-calibrated').addEventListener('click', () => {
+      document.getElementById('ab-calibrated').classList.add('active');
+      document.getElementById('ab-legacy').classList.remove('active');
+      state.legacyMode = false;
+      refreshStyle();
+    });
+    document.getElementById('ab-legacy').addEventListener('click', () => {
+      document.getElementById('ab-legacy').classList.add('active');
+      document.getElementById('ab-calibrated').classList.remove('active');
+      state.legacyMode = true;
+      refreshStyle();
+    });
+
+    document.querySelectorAll('#camera-buttons button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#camera-buttons button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cam = CAMERAS[btn.dataset.cam];
+        if (cam) map.flyTo({ ...cam, duration: 900 });
+        if (window.innerWidth <= 768) setHudVisible(false);
+      });
+    });
+  </script>
+</body>
+</html>
